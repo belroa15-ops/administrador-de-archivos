@@ -1,7 +1,10 @@
 name: Crear APK
 on:
   push:
+    branches: [main]
   workflow_dispatch:
+permissions:
+  contents: write
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -16,7 +19,7 @@ jobs:
           java-version: 17
       - run: npm install
       - run: npx cap add android
-      - name: Agregar permisos
+      - name: Permisos y modulo de archivos
         run: |
           python3 - <<'PY'
           p='android/app/src/main/AndroidManifest.xml'
@@ -31,9 +34,109 @@ jobs:
           s=s.replace('<application',perms,1)
           open(p,'w').write(s)
           PY
+          D=android/app/src/main/java/com/miapp/administradorarchivos
+          cat > $D/FileAccessPlugin.java <<'EOF'
+          package com.miapp.administradorarchivos;
+
+          import android.Manifest;
+          import android.content.Intent;
+          import android.content.pm.PackageManager;
+          import android.net.Uri;
+          import android.os.Build;
+          import android.os.Environment;
+          import android.provider.Settings;
+          import com.getcapacitor.JSObject;
+          import com.getcapacitor.Plugin;
+          import com.getcapacitor.PluginCall;
+          import com.getcapacitor.PluginMethod;
+          import com.getcapacitor.annotation.CapacitorPlugin;
+          import java.io.File;
+          import org.json.JSONArray;
+
+          @CapacitorPlugin(name = "FileAccess")
+          public class FileAccessPlugin extends Plugin {
+              private boolean allowed() {
+                  if (Build.VERSION.SDK_INT >= 30) return Environment.isExternalStorageManager();
+                  return getContext().checkSelfPermission(Manifest.permission.READ_EXTERNAL_STORAGE) == PackageManager.PERMISSION_GRANTED;
+              }
+              @PluginMethod
+              public void hasAccess(PluginCall call) {
+                  JSObject o = new JSObject();
+                  o.put("granted", allowed());
+                  call.resolve(o);
+              }
+              @PluginMethod
+              public void requestAccess(PluginCall call) {
+                  if (Build.VERSION.SDK_INT >= 30) {
+                      Intent i = new Intent(Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION, Uri.parse("package:" + getContext().getPackageName()));
+                      i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                      getContext().startActivity(i);
+                  }
+                  call.resolve();
+              }
+              @PluginMethod
+              public void scan(PluginCall call) {
+                  new Thread(() -> {
+                      try {
+                          JSONArray a = new JSONArray();
+                          walk(Environment.getExternalStorageDirectory(), a, 0);
+                          JSObject o = new JSObject();
+                          o.put("files", a);
+                          call.resolve(o);
+                      } catch (Exception e) {
+                          call.reject(String.valueOf(e.getMessage()));
+                      }
+                  }).start();
+              }
+              private void walk(File d, JSONArray a, int depth) {
+                  File[] list = d.listFiles();
+                  if (list == null || depth > 12) return;
+                  for (File f : list) {
+                      if (a.length() >= 20000) return;
+                      String n = f.getName();
+                      if (n.startsWith(".")) continue;
+                      if (f.isDirectory()) {
+                          if (depth == 0 && n.equals("Android")) continue;
+                          walk(f, a, depth + 1);
+                      } else {
+                          JSONArray r = new JSONArray();
+                          r.put(f.getAbsolutePath());
+                          r.put(f.length());
+                          r.put(f.lastModified());
+                          a.put(r);
+                      }
+                  }
+              }
+          }
+          EOF
+          cat > $D/MainActivity.java <<'EOF'
+          package com.miapp.administradorarchivos;
+
+          import android.os.Bundle;
+          import com.getcapacitor.BridgeActivity;
+
+          public class MainActivity extends BridgeActivity {
+              @Override
+              public void onCreate(Bundle savedInstanceState) {
+                  registerPlugin(FileAccessPlugin.class);
+                  super.onCreate(savedInstanceState);
+              }
+          }
+          EOF
       - run: npx cap sync android
+      - name: Firma fija
+        run: |
+          mkdir -p ~/.android
+          echo "MIIKZgIBAzCCChAGCSqGSIb3DQEHAaCCCgEEggn9MIIJ+TCCBcAGCSqGSIb3DQEHAaCCBbEEggWtMIIFqTCCBaUGCyqGSIb3DQEMCgECoIIFQDCCBTwwZgYJKoZIhvcNAQUNMFkwOAYJKoZIhvcNAQUMMCsEFBuHmYvAhL6rhjzdXgjcqwowOIE3AgInEAIBIDAMBggqhkiG9w0CCQUAMB0GCWCGSAFlAwQBKgQQPvrQRu1RYg9v8sEYlBLgdQSCBNCRrqQWvWuU/s4wUGo/PyaR4OmMHM8qM+5gH60bk2GWI+7zwU3Cm7FQ5FB5idGuWJj2yzIaYQ5K07c8iL3Pl4i8lqmZQIAKRiq01lLaHG/u1cdhMwotNEZntOj5Av8ja5SMjreYlYHB1Xc5iEKGP2Rl+MWwzgnO93QVjsdZxQDVpDh7Zza9AYko9OxI2DuONw5ordJdm3xk6OhNTE0RBnpTrkqgYFdEcTUtgtCtoyDUythcduOfpbPhgfnoumL+JMrBEwfkimuyENtRWGLDFFvNhk6hw0vDzVoe8QgafePMop/I3ExQNgSbueLH9yUsxUItTVyzESW+0Xp/jtQMtWBzB9PXt1wIy4uAI5sMo0HG7Yi2SCqD9cROoMjXnj245ZtpYeL/cmER2Uc+0n3VNbm/Jbqh9uTmYuceweo1Y7wXYVpznTBfubBIAhMW12uCPHiw0yCgKptfylbJlv01a3hBSHvhgDlzIgWDceoaWYICoyKufykHsWJguJYYUWsblgEpk/InVJW1zsyPquC56qtwwFKoMGMrY4XQn4HOt4o5YVSW2VChXEuwIMZBw03AERU7JdOYHT9oOLsrnUpRMJQbXx5B1+/EvLfSBIDS5L0VeAs0FuzGgjW3KyIzDHwN1EgIxwC00alpBkvoZ6A5CJev3gPvckJSgzUhW1sE8ALuADAPHXEn+L/93jWiidofYT616ty+HRmkHsD92Lb2/scNeCDTeEHus2S+juyIfl5UirRU1GQmX1P0NsCL5RqYp1JWBBTvTCDiCKKDWFdd9UfX5jD23IwERa6dV+YExgg2blZP+EZiER07Kr0As+Z71dRagLNsxpvWDiVbO3TIEB5nJ/GWQNWQL+zU6fiFGCnhtWz3SratqhZpmchgTsfYt01iSPs/NaLxQH+B0nr8JnU2Sn+mUjed13zGqakUG91WwmmrAAAmHWEpxoUKS0PSB01iuR2igHPE4nCmYa5qzrSMTf7iI9352DA77ZUubNsLWez8r9mtVKtJDDqkmkvAU2VSKWmvNsJmaybCjaLKz3CbmKFyuZGAgfti2NXfU82YAzBGjg7lEWc5I/0vYKuuGMpD40TLhIk8smyLdopcJbY62UpJ34WSJtzQj8SLuivA+cs04x6JfDTdKhxzPD/Pli1l9Wdb+kD5W3KQayiLiqO6piJ/gJF3MWkkEhqc/uKZFeIjdCljMgIGJFD22thNY+QWnLOhQqXxjGl8tEGePO62b0Y3nLt+9TYzrOOUWfm1CSneLvjj6BrZRLTo2a7ftobonY6PP7MLuM4r+YorxSFhmNDvNLwO6dbx+bc5NnxkxnL4uPYrgcXW/0cXJyZhAIMnaeRwqAeIpZs3XoGsYwgLYP0OU0eEjAgs197JoYK6aLAnZbF9YZfWJBYvUaprvprIiV4Bz/2CH8jns3DdLbpbwiUYesBuBt6FzSarOkgNZoWouMW+6dNEfBKu7QzBA6PlvPtKAkTUjxdj0/YkRlUR5m67hlTwVnNxl3Kbr44oZYTSOl+54lxtHmRe4/FEJkZ0/z2L6XB/aectZjbeKkbLJ6OHwVbRrXyqX770Dqoe0NQ3WH3OBlJAExk7p8Ljc+TELqCaoFNONerj1RFFK67dq6VSpSofQYBZ2gVmjiJmsTFSMC0GCSqGSIb3DQEJFDEgHh4AYQBuAGQAcgBvAGkAZABkAGUAYgB1AGcAawBlAHkwIQYJKoZIhvcNAQkVMRQEElRpbWUgMTc5MTMwMDA1NzM0MTCCBDEGCSqGSIb3DQEHBqCCBCIwggQeAgEAMIIEFwYJKoZIhvcNAQcBMGYGCSqGSIb3DQEFDTBZMDgGCSqGSIb3DQEFDDArBBTujusNotxCs2005nxioYGZJbsk+AICJxACASAwDAYIKoZIhvcNAgkFADAdBglghkgBZQMEASoEEOsnscVa1dt6hgrGY+X/46mAggOgri1SopNWQ3ex3AcPR3PRVrIpEb2Fn/WHZgLkZHNRkoSjtwhoBBLPpk0gciKVkRA0QwhpJnzfrFFp9aCwTJ2gHR/x2LZ9jCu+z1v1sHBLuLqy2LTJfbGhlsoj9KDlGjVCiuum8gH6GckoU7kQKhJtd2Th2BqZLrVLwqBiVW7IBNWVzjfwD9DXaW0iocNu7GqMfBngkrTrTqNjNwvQJTHry70hqSeZis/RivVvZb4HhVAK4RB6ywGb4rKlkOAQ4VNlUuor+bTWQgywECto1tPWLEWhAA4gcc1pcZPWwlExS338mH1nPyivpw54p4maYiu8ySuJYU1PaiywIybzZyuwC1i3Wo8Bwq4WFMq7V3TJjI03g5VA8vcldq6gbCeMbXTXghs4QirV7Fn9ZSN1zQjJpLvbQ4/deq/ParbjC5SXVCTbFCSxeQacOKtn9/nd++xFVPt3vrK8jqdYFz5ut/hcWVnEKtp++UYbHq6dP2YXThAsUJ4B2IYF+KdCFKaWmNPHkLHUxU9vsPQMBIv8l9xNGBlzcxljwu4WN1Vqe/YPbWBorwrMbvRA1hc8Tyd7wSnzcG+xSBoCzWnE5t6jC3lHVvUCh+JzHHYXywJLHt6URorq+GveGXlBuHcOKT5KoaDvTYPiMolNQG4nwHsFaxMIuI8VtnMnUVvLWVuD+iSTcFVJtLiiSgojiQq3d+I74r7eB1qYAyu0b0YNwRNnW5+/UqH2458p/gyzi8YG0qz4sl/r4098boe9G2uNuGAZQbrux8BO0AsK/nfR53Uhrar4H5uN7ckvP+gn9uBhhvZNCjCLhUUh2MwQ3nuk2CfeuGtA4h+vcQfG5rKEYp70wyFGVlVEmD0aIbzWaHBbYf/YI2HpqhMkKXqpe3g/SfFQ8eo18ZlJ+KRyJOkdQLO1ovoG7pciDyyskPyOnIypBeKVH+NPYx/Pu80G/ILGdyfGo3gHJ5u9xDCAvywrjeS42/CfiA0ysHSiwWDljmSICYEVtNVvoS7IDhq+nPwIfHv40cUHaAhV+qvZfZ69jFNHd/fonaHcMo7tFiDuUmjgQRHsJg+vxFLSwJCCxfoz4LUHgFz8tF37cI6cnK40EfcjX9hYFrsBJ5L+Nreb5Hgs1Ilh0Y10WQAfGGbdaleZiLbpZ4BCcil2fp/BP18PGrr0hgYiiMsJnhqlXGkVG1sTqhQjgIjwUI7xaJsr38TCVAzaBRL11udhBANqczic5KqsEvyN8jBNMDEwDQYJYIZIAWUDBAIBBQAEIDukSb7/O7WhT+DQ8ZYGTtciAIGS0Rvt3sX1wXxJt5GjBBSn7UZ/jI42gnMRKClRLanaYfn53AICJxA=" | base64 -d > ~/.android/debug.keystore
       - run: cd android && chmod +x gradlew && ./gradlew assembleDebug
+      - run: cp android/app/build/outputs/apk/debug/app-debug.apk Administrador-De-Archivos.apk
+      - uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ github.run_number }}
+          name: Administrador De Archivos v${{ github.run_number }}
+          files: Administrador-De-Archivos.apk
+          make_latest: true
       - uses: actions/upload-artifact@v4
         with:
           name: Administrador-De-Archivos-APK
-          path: android/app/build/outputs/apk/debug/app-debug.apk
+          path: Administrador-De-Archivos.apk
