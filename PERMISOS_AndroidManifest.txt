@@ -1,0 +1,12 @@
+Pega estas líneas en android/app/src/main/AndroidManifest.xml
+(dentro de <manifest>, justo antes de <application>):
+
+<uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" android:maxSdkVersion="32"/>
+<uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" android:maxSdkVersion="29"/>
+<uses-permission android:name="android.permission.READ_MEDIA_IMAGES"/>
+<uses-permission android:name="android.permission.READ_MEDIA_VIDEO"/>
+<uses-permission android:name="android.permission.READ_MEDIA_AUDIO"/>
+<uses-permission android:name="android.permission.MANAGE_EXTERNAL_STORAGE"/>
+
+Y en la etiqueta <application ...> agrega el atributo:
+android:requestLegacyExternalStorage="true"
