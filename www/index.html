@@ -2,7 +2,8 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover, interactive-widget=resizes-content">
+<meta name="theme-color" content="#f8f9fa">
 <title>Administrador De Archivos</title>
 <style>
 :root{--bg:#f8f9fa;--sf:#fff;--sv:#f1f3f4;--pr:#1a73e8;--pc:#e8f0fe;--tx:#1f1f1f;--ts:#5f6368;--bd:#e0e0e0;--rd:#d93025;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
@@ -93,6 +94,7 @@ nav.ga button.on .sv{animation:pop .55s cubic-bezier(.3,1.6,.5,1)}
 .radar .ic{animation:pulse 1.6s ease-in-out infinite}
 body,.card,nav,.sheet,.dlg,input{transition:background-color .4s,color .4s,border-color .4s}
 @media(prefers-reduced-motion:reduce){*{animation-duration:.01ms!important;animation-delay:0s!important;transition-duration:.01ms!important}}
+#app{height:100dvh}body{overscroll-behavior:none;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;touch-action:manipulation}input{-webkit-user-select:text;user-select:text}main{overscroll-behavior:contain;-webkit-overflow-scrolling:touch}
 </style>
 </head>
 <body>
@@ -108,8 +110,8 @@ const L={get(k,d){try{const v=localStorage.getItem(k);return v?JSON.parse(v):d}c
 const T={dl:['Descargas','⬇️','#1a73e8'],img:['Imágenes','🖼️','#d93025'],vid:['Vídeos','🎬','#188038'],aud:['Audio','🎵','#9334e6'],doc:['Documentos','📄','#f29900'],apk:['Aplicaciones (APK)','📦','#12a4af']};
 const EXT={dl:'zip',img:'jpg',vid:'mp4',aud:'mp3',doc:'pdf',apk:'apk'};
 const seed=[['Paisaje_4K','img',2.4,0],['Selfie_playa','img',3.1,1],['Captura_042','img',.8,2],['Foto_familia','img',4.6,9],['Proyecto_Final','doc',8.1,1],['Factura_Sept','doc',.4,3],['Contrato','doc',1.2,12],['Apuntes_clase','doc',2.2,5],['Audio_Nota_01','aud',3.2,2],['Canción_demo','aud',7.9,20],['Podcast_ep12','aud',48,6],['Vacaciones_2026','vid',812,4],['Tutorial_edición','vid',356,15],['Clip_cumple','vid',120,1],['Instalador_app','apk',86,7],['Juego_beta','apk',412,30],['Descarga_datos','dl',230,0],['Respaldo','dl',1480,8],['Fotos_comprimidas','dl',640,18]];
-let S={files:L.get('f',null)||seed.map((s,i)=>({id:i+1,n:s[0],t:s[1],s:s[2],d:s[3],f:0,v:0,x:0})),dark:L.get('dk',null),view:L.get('vw','list'),sort:'date',tab:'home',cat:null,q:'',sel:new Set(),pin:L.get('pin',null),unlocked:false,sch:false,nid:100};
-S.nid=Math.max(100,...S.files.map(f=>f.id));const save=()=>{L.set('f',S.files);L.set('vw',S.view);L.set('pin',S.pin)};
+let S={files:(L.get('f',null)||[]).filter(x=>x.real),dark:L.get('dk',null),view:L.get('vw','list'),sort:'date',tab:'home',cat:null,q:'',sel:new Set(),pin:L.get('pin',null),unlocked:false,sch:false,nid:100};
+S.nid=Math.max(100,...S.files.map(f=>f.id));S.lim=100;const flush=()=>{L.set('f',S.files);L.set('vw',S.view);L.set('pin',S.pin)};let svt;const save=()=>{clearTimeout(svt);svt=setTimeout(flush,250)};addEventListener('pagehide',flush);document.addEventListener('visibilitychange',()=>{if(document.hidden)flush()});
 const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const sz=m=>m>=1024?(m/1024).toFixed(1)+' GB':m>=1?(m<10?m.toFixed(1):Math.round(m))+' MB':Math.max(1,Math.round(m*1024))+' KB';
 const ag=d=>d==0?'Hoy':d==1?'Ayer':'hace '+d+' d';
@@ -166,7 +168,7 @@ const RE=new RegExp('('+Object.keys(IC).join('|')+')\uFE0F?','gu');
 const em=t=>t.replace(RE,(m,c)=>'<svg class="sv" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'+IC[c]+'</svg>');
 const sk=q=>{const e=$(q);e.innerHTML=em(e.innerHTML)};
 let lastK='',gt;
-function render(){const k=[S.tab,S.cat,S.unlocked,S.sch].join(),go=k!=lastK;lastK=k;head();sk('#hd');sk('#nv');body();const m=$('#mn');m.classList.toggle('go',go);$('#nv').classList.toggle('ga',go);$('#hd').classList.toggle('ga',go);if(go)m.scrollTop=0;clearTimeout(gt);gt=setTimeout(()=>{m.classList.remove('go');$('#nv').classList.remove('ga');$('#hd').classList.remove('ga')},900)}
+function render(){const k=[S.tab,S.cat,S.unlocked,S.sch].join(),go=k!=lastK;lastK=k;if(go)S.lim=100;head();sk('#hd');sk('#nv');body();const m=$('#mn');m.classList.toggle('go',go);$('#nv').classList.toggle('ga',go);$('#hd').classList.toggle('ga',go);if(go)m.scrollTop=0;clearTimeout(gt);gt=setTimeout(()=>{m.classList.remove('go');$('#nv').classList.remove('ga');$('#hd').classList.remove('ga')},900)}
 let dbp;const DB=()=>dbp||(dbp=new Promise((ok,no)=>{try{const r=indexedDB.open('adm',1);r.onupgradeneeded=()=>r.result.createObjectStore('b');r.onsuccess=()=>ok(r.result);r.onerror=()=>no()}catch(e){no()}}));
 const bput=async(id,b)=>{try{const d=await DB();d.transaction('b','readwrite').objectStore('b').put(b,id)}catch(e){}};
 const bget=async id=>{try{const d=await DB();return await new Promise(ok=>{const r=d.transaction('b').objectStore('b').get(id);r.onsuccess=()=>ok(r.result);r.onerror=()=>ok(null)})}catch(e){return null}};
@@ -191,18 +193,18 @@ $('#hd').innerHTML=(back?'<button class="ib" data-a="back" aria-label="Volver">�
 $('#nv').innerHTML=[['home','📁','Explorar'],['clean','🧹','Limpiar'],['share','📡','Compartir']].map(n=>'<button data-a="tab" data-id="'+n[0]+'" class="'+(S.tab==n[0]?'on':'')+'"><span>'+n[1]+'</span>'+n[2]+'</button>').join('');
 if(S.sel.size){const h=document.createElement('div');h.className='sel';h.innerHTML='<button class="ib" data-a="clr">✕</button><b>'+S.sel.size+' seleccionados</b>'+(S.cat=='trash'?'<button class="ib" data-a="bres" title="Restaurar">♻️</button><button class="ib" data-a="bdel" title="Eliminar">🗑️</button>':'<button class="ib" data-a="bfav">★</button><button class="ib" data-a="bvault">🔒</button><button class="ib" data-a="btrash">🗑️</button>');$('#hd').prepend(h);}}
 function body(){const m=$('#mn');let h='';
-if(S.tab=='home'&&!S.cat&&!S.q&&!S.sch){const all=open_();const tot=all.reduce((a,f)=>a+f.s,0);const real=all.some(x=>x.real);const sys=real?0:46*1024;const cap=real?Math.max(tot,1):128*1024;const used=sys+tot;
+if(S.tab=='home'&&!S.cat&&!S.q&&!S.sch){const all=open_();const tot=all.reduce((a,f)=>a+f.s,0);const real=true;const sys=0;const cap=real?Math.max(tot,1):128*1024;const used=sys+tot;
 const seg=Object.keys(T).map(k=>[k,all.filter(f=>f.t==k)]);
 h+='<div class="card pad"><div style="display:flex;justify-content:space-between"><b>💾 '+(real?'Tus archivos':'Almacenamiento interno')+'</b><b style="color:var(--pr)">'+(real?all.length+' archivos':Math.round(used/cap*100)+'% usado')+'</b></div><div class="bar"><i style="width:'+(sys/cap*100)+'%;background:#9aa0a6"></i>'+seg.map(s=>'<i style="width:'+(s[1].reduce((a,f)=>a+f.s,0)/cap*100)+'%;background:'+T[s[0]][2]+'"></i>').join('')+'</div><div class="sub">'+(real?'Total '+sz(tot)+' • guardado solo en tu dispositivo':sz(used)+' usados de 128 GB • '+sz(cap-used)+' libres')+'</div></div>';
-h+='<h2>Mis archivos reales</h2><div class="card"><button class="row" data-a="impf"><div class="ic">＋</div><div class="grow"><b>Importar archivos</b><span class="sub">Elige fotos, vídeos, documentos…</span></div>›</button><button class="row" data-a="impd"><div class="ic">📁</div><div class="grow"><b>Importar carpeta</b><span class="sub">Añade todo el contenido de una carpeta</span></div>›</button>'+(NAT?'<button class="row" data-a="scan"><div class="ic">🔍</div><div class="grow"><b>Escanear dispositivo</b><span class="sub">Busca todos tus archivos</span></div></button>':'')+(S.files.some(x=>!x.real)?'<button class="row" data-a="rmdemo"><div class="ic">🗑️</div><div class="grow"><b>Quitar archivos de ejemplo</b></div></button>':'')+'</div><h2>Categorías</h2><div class="card">'+seg.map(s=>'<button class="row" data-a="cat" data-id="'+s[0]+'"><div class="ic" style="color:'+T[s[0]][2]+'">'+T[s[0]][1]+'</div><div class="grow"><b>'+T[s[0]][0]+'</b><span class="sub">'+sz(s[1].reduce((a,f)=>a+f.s,0))+' • '+s[1].length+' archivos</span></div>›</button>').join('')+'</div>';
+h+='<h2>Mis archivos reales</h2><div class="card"><button class="row" data-a="impf"><div class="ic">＋</div><div class="grow"><b>Importar archivos</b><span class="sub">Elige fotos, vídeos, documentos…</span></div>›</button><button class="row" data-a="impd"><div class="ic">📁</div><div class="grow"><b>Importar carpeta</b><span class="sub">Añade todo el contenido de una carpeta</span></div>›</button>'+(NAT?'<button class="row" data-a="scan"><div class="ic">🔍</div><div class="grow"><b>Escanear dispositivo</b><span class="sub">Busca todos tus archivos</span></div></button>':'')+(false?'<button class="row" data-a="rmdemo"><div class="ic">🗑️</div><div class="grow"><b>Quitar archivos de ejemplo</b></div></button>':'')+'</div><h2>Categorías</h2><div class="card">'+seg.map(s=>'<button class="row" data-a="cat" data-id="'+s[0]+'"><div class="ic" style="color:'+T[s[0]][2]+'">'+T[s[0]][1]+'</div><div class="grow"><b>'+T[s[0]][0]+'</b><span class="sub">'+sz(s[1].reduce((a,f)=>a+f.s,0))+' • '+s[1].length+' archivos</span></div>›</button>').join('')+'</div>';
 const nf=live().filter(f=>f.f&&!f.v).length,nt=S.files.filter(f=>f.x).length;
 h+='<h2>Colecciones</h2><div class="grid2"><button class="tile" data-a="cat" data-id="fav"><div class="ic" style="color:#f29900">★</div>Favoritos<span class="sub">'+nf+'</span></button><button class="tile" data-a="cat" data-id="vault"><div class="ic">🔒</div>Carpeta segura<span class="sub">'+live().filter(f=>f.v).length+'</span></button><button class="tile" data-a="cat" data-id="trash" style="grid-column:span 2"><div class="ic">🗑️</div>Papelera<span class="sub">'+nt+' archivos</span></button></div>';
-h+='<h2>Recientes</h2><div class="card">'+all.slice().sort((a,b)=>a.d-b.d).slice(0,5).map(fileRow).join('')+'</div>';
-}else if(S.tab=='home'){const a=list();h+=(S.sch||S.q?'<input id="qi" placeholder="Buscar archivos…" value="'+esc(S.q)+'" autocomplete="off">':'')+'<div class="chips" style="margin-top:8px">'+[['date','Reciente'],['name','Nombre'],['size','Tamaño'],['type','Tipo']].map(c=>'<button class="chip '+(S.sort==c[0]?'on':'')+'" data-a="sort" data-id="'+c[0]+'">'+c[1]+'</button>').join('')+'</div>';
+h+='<h2>Recientes</h2><div class="card">'+all.slice().sort((a,b)=>a.d-b.d).slice(0,5).map(fileRow).join('')+(all.length?'':'<div class="empty" style="padding:24px">Aún no hay archivos.<br>'+(typeof NAT!="undefined"&&NAT?'Pulsa "Escanear dispositivo".':'Pulsa "Importar archivos".')+'</div>')+'</div>';
+}else if(S.tab=='home'){const all_=list(),a=all_.slice(0,S.lim);h+=(S.sch||S.q?'<input id="qi" placeholder="Buscar archivos…" value="'+esc(S.q)+'" autocomplete="off">':'')+'<div class="chips" style="margin-top:8px">'+[['date','Reciente'],['name','Nombre'],['size','Tamaño'],['type','Tipo']].map(c=>'<button class="chip '+(S.sort==c[0]?'on':'')+'" data-a="sort" data-id="'+c[0]+'">'+c[1]+'</button>').join('')+'</div>';
 if(S.cat=='vault'&&!S.unlocked){h='<div class="empty"><div style="font-size:48px">🔒</div><p style="margin:10px 0 16px">'+(S.pin?'Ingresa tu PIN para abrir':'Crea un PIN de 4 a 6 dígitos')+'</p><button class="btn" data-a="unlock">'+(S.pin?'Desbloquear':'Crear PIN')+'</button></div>'}
 else if(!a.length)h+='<div class="empty"><div style="font-size:48px">📭</div><p>No hay archivos</p></div>';
 else if(S.cat=='trash')h+='<button class="btn o" data-a="empty" style="margin-bottom:10px">Vaciar papelera</button><div class="card">'+a.map(fileRow).join('')+'</div>';
-else h+=S.view=='list'?'<div class="card">'+a.map(fileRow).join('')+'</div>':'<div class="gridf">'+a.map(fileCard).join('')+'</div>'}
+else h+=S.view=='list'?'<div class="card">'+a.map(fileRow).join('')+'</div>':'<div class="gridf">'+a.map(fileCard).join('')+'</div>';if(all_.length>a.length&&!(S.cat=='vault'&&!S.unlocked))h+='<button class="btn o" data-a="moreRows" style="width:100%;margin:6px 0 12px">Mostrar más ('+(all_.length-a.length)+')</button>'}
 else if(S.tab=='clean'){const dup=junk();const tr=S.files.filter(f=>f.x).reduce((a,f)=>a+f.s,0);const big=open_().filter(f=>f.s>=300);const cache=cch();
 const items=[['🗑️','Papelera',tr,'trash'],['🧽','Caché de aplicaciones',cache,'cache'],['📑','Archivos duplicados',dup.reduce((a,f)=>a+f.s,0),'dup'],['🐘','Archivos grandes (+300 MB)',big.reduce((a,f)=>a+f.s,0),'big']];const total=items.slice(0,3).reduce((a,i)=>a+i[2],0);
 h+='<div class="card pad" style="text-align:center"><div style="font-size:42px">🧹</div><div style="font-size:26px;font-weight:500;margin:6px 0">'+sz(total)+'</div><p class="sub" style="margin-bottom:12px">que puedes liberar</p><button class="btn" data-a="cleanall">Limpiar todo</button></div><div class="card">'+items.map(i=>'<button class="row" data-a="cl" data-id="'+i[3]+'"><div class="ic">'+i[0]+'</div><div class="grow"><b>'+i[1]+'</b><span class="sub">'+sz(i[2])+'</span></div>›</button>').join('')+'</div>'}
@@ -219,7 +221,7 @@ document.addEventListener('click',e=>{const el=e.target.closest('[data-a]');if(!
 if(a=='open'){if(S.sel.size)return tg(fid);if(e.target.closest('[data-a="more"],[data-a="tog"]'))return;more(fid)}
 else if(a=='tog'){e.stopPropagation();tg(fid)}
 else if(a=='more'){e.stopPropagation();more(fid)}
-else if(a=='scan')scan();else if(a=='impf')FI.click();else if(a=='impd')DI.click();else if(a=='rmdemo'){bdel([]);S.files=S.files.filter(x=>x.real);save();render();toast('Ejemplos quitados')}else if(a=='prev')prev(f);else if(a=='tab'){S.tab=id;S.cat=null;S.q='';S.sch=false;S.sel.clear();S.unlocked=false;render()}
+else if(a=='moreRows'){S.lim+=150;render()}else if(a=='scan')scan();else if(a=='impf')FI.click();else if(a=='impd')DI.click();else if(a=='rmdemo'){bdel([]);S.files=S.files.filter(x=>x.real);save();render();toast('Ejemplos quitados')}else if(a=='prev')prev(f);else if(a=='tab'){S.tab=id;S.cat=null;S.q='';S.sch=false;S.sel.clear();S.unlocked=false;render()}
 else if(a=='cat'){S.cat=id;S.sel.clear();render()}
 else if(a=='back'){S.cat=null;S.q='';S.sch=false;S.sel.clear();S.unlocked=false;render()}
 else if(a=='search'){S.sch=true;S.cat=null;render();$('#qi').focus()}
@@ -250,6 +252,13 @@ else if(a=='cp'){const t=live().map(x=>fn(x)).join('\n');try{navigator.clipboard
 });
 function tg(id){S.sel.has(id)?S.sel.delete(id):S.sel.add(id);render()}
 let dbt;document.addEventListener('input',e=>{if(e.target.id=='qi'){S.q=e.target.value;clearTimeout(dbt);dbt=setTimeout(()=>{const p=e.target.selectionStart;body();const i=$('#qi');if(i){i.focus();i.setSelectionRange(p,p)}},120)}});
+let lastBack=0;
+function goBack(){const o=document.querySelectorAll('.ov');if(o.length){o[o.length-1].remove();return true}
+if(S.sel.size){S.sel.clear();render();return true}
+if(S.cat||S.q||S.sch){S.cat=null;S.q='';S.sch=false;S.unlocked=false;render();return true}
+if(S.tab!='home'){S.tab='home';render();return true}
+return false}
+if(NAT&&Capacitor.Plugins.App)Capacitor.Plugins.App.addListener('backButton',()=>{if(goBack())return;const n=Date.now();if(n-lastBack<2000)Capacitor.Plugins.App.exitApp();else{lastBack=n;toast('Presiona otra vez para salir')}});
 applyTheme();render();if(NAT){L.get('perm',0)?scan():perm()}
 })();
 </script>
