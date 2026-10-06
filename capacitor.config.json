@@ -1,5 +1,8 @@
 {
   "appId": "com.miapp.administradorarchivos",
   "appName": "Administrador De Archivos",
-  "webDir": "www"
+  "webDir": "www",
+  "android": {
+    "backgroundColor": "#f8f9fa"
+  }
 }
